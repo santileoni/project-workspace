@@ -11,7 +11,11 @@ type UpgradeModalProps = {
   onUpgrade?: () => void;
 };
 
-const PERKS = ["Unlimited active projects", "No archiving to make room", "Priority support"];
+const PERKS = [
+  "Unlimited active projects",
+  "Keep everything active at once",
+  "Priority support"
+];
 
 const container: Variants = {
   hidden: {},
@@ -44,11 +48,11 @@ export function UpgradeModal({ open, used, limit, onClose, onUpgrade }: UpgradeM
           Free plan
         </motion.p>
         <motion.h2 variants={item} id="upgrade-title" className="mt-1.5 text-2xl font-extrabold tracking-tight text-text">
-          You&rsquo;ve hit your project limit
+          You&rsquo;ve hit your active project limit
         </motion.h2>
         <motion.p variants={item} id="upgrade-desc" className="mt-2.5 text-[0.95rem] leading-relaxed text-muted">
-          Free workspaces hold up to {limit} active projects. Upgrade to Pro for unlimited
-          projects — never archive good work to make room again.
+          Free workspaces keep up to {limit} active projects at once. Archive one to free a
+          slot, or upgrade to Pro for unlimited active projects.
         </motion.p>
 
         <motion.div variants={item} className="mt-5">

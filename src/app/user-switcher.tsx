@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 type SwitchUser = { id: string; label: string };
 
@@ -22,10 +22,30 @@ export function UserSwitcher({
   // back/forward), so the pill always reflects the real current user.
   useEffect(() => setSelected(activeId), [activeId]);
 
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
   function select(id: string) {
     if (id === selected) return;
     setSelected(id);
     onSelect(id);
+  }
+
+  // WAI-ARIA radiogroup keyboard support: arrows/Home/End move and select.
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      next = (index + 1) % users.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      next = (index - 1 + users.length) % users.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = users.length - 1;
+    }
+    if (next === null) return;
+    event.preventDefault();
+    btnRefs.current[next]?.focus();
+    select(users[next].id);
   }
 
   return (
@@ -34,15 +54,20 @@ export function UserSwitcher({
       aria-label="Switch current user"
       className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-1 p-1 shadow-sm"
     >
-      {users.map((user) => {
+      {users.map((user, index) => {
         const isActive = selected === user.id;
         return (
           <button
             key={user.id}
             role="radio"
             type="button"
+            ref={(element) => {
+              btnRefs.current[index] = element;
+            }}
             aria-checked={isActive}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => select(user.id)}
+            onKeyDown={(event) => onKeyDown(event, index)}
             className="relative isolate rounded-full px-4 py-1.5 text-sm font-semibold transition-colors"
             style={{ color: isActive ? "var(--accent-contrast)" : "var(--text-muted)" }}
           >

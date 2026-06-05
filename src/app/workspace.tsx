@@ -50,6 +50,11 @@ export function Workspace({
   // changed, so it always matches the new user — no extra ref needed.
   useEffect(() => {
     setProjects(initialProjects);
+    // Clear any transient UI tied to the previous account so nothing leaks
+    // across a switch (e.g. an open edit modal or in-flight busy markers).
+    setEditing(null);
+    setUpgradeOpen(false);
+    setBusyIds(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeUserId]);
 

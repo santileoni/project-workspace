@@ -183,6 +183,21 @@ describe("project creation", () => {
     });
     expect(liveCount).toBe(3);
   });
+
+  it("allows creating an archived project even at the active limit", async () => {
+    // Reach the live limit (fixture has 2; this makes 3 active = the cap).
+    await requestCreateProject(fixture.user, { name: "Third Active" });
+
+    // An archived project doesn't count toward the limit, so it's still allowed.
+    const response = await requestCreateProject(fixture.user, {
+      name: "Archived Extra",
+      status: ProjectStatus.ARCHIVED
+    });
+    const body = (await response.json()) as { project: { status: ProjectStatus } };
+
+    expect(response.status).toBe(201);
+    expect(body.project.status).toBe(ProjectStatus.ARCHIVED);
+  });
 });
 
 function requestCreateProject(userId: string, body: Record<string, unknown>) {

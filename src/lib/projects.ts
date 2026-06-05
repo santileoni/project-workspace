@@ -52,6 +52,18 @@ export async function createProjectForUser(userId: string, input: CreateProjectI
   const name = parseProjectName(input.name);
   const status = parseProjectStatus(input.status);
 
+  const data = {
+    name,
+    status,
+    organizationId: currentUser.organizationId
+  };
+
+  // Archived projects are a soft-delete and don't count toward the limit, so
+  // creating one is always allowed — no lock or limit check needed.
+  if (status === ProjectStatus.ARCHIVED) {
+    return prisma.project.create({ data, include: { organization: true } });
+  }
+
   return prisma.$transaction(async (tx) => {
     // Take a per-organization advisory lock so the limit check and the insert
     // are atomic. Without it, two concurrent creates could both read a count
@@ -66,16 +78,7 @@ export async function createProjectForUser(userId: string, input: CreateProjectI
       currentUser.organization.plan
     );
 
-    return tx.project.create({
-      data: {
-        name,
-        status,
-        organizationId: currentUser.organizationId
-      },
-      include: {
-        organization: true
-      }
-    });
+    return tx.project.create({ data, include: { organization: true } });
   });
 }
 
