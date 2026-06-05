@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String      @id @default(cuid())
+  name      String
+  slug      String      @unique
+  plan      BillingPlan @default(FREE)
+  users     User[]
+  projects  Project[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String
+  role           UserRole     @default(MEMBER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  name           String
+  status         ProjectStatus @default(ACTIVE)
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId])
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum BillingPlan {
+  FREE
+  PRO
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
