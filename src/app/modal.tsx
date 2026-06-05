@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { CSSProperties, ReactNode, useEffect, useRef, useState } from "react";
 
 const EXIT_MS = 260;
 
@@ -25,6 +25,13 @@ export function Modal({ open, onClose, labelledBy, describedBy, children }: Moda
   const [visible, setVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  // Hold the latest onClose in a ref so the key handler can stay bound for the
+  // modal's whole lifetime instead of re-subscribing on every parent render.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (open) {
@@ -66,7 +73,7 @@ export function Modal({ open, onClose, labelledBy, describedBy, children }: Moda
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -74,8 +81,10 @@ export function Modal({ open, onClose, labelledBy, describedBy, children }: Moda
         return;
       }
 
+      // Only currently-focusable controls — skip disabled ones so Tab never
+      // lands on, say, a disabled "Save" button mid-submit.
       const focusable = cardRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
       if (focusable.length === 0) {
         return;
@@ -95,7 +104,7 @@ export function Modal({ open, onClose, labelledBy, describedBy, children }: Moda
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [mounted, onClose]);
+  }, [mounted]);
 
   if (!mounted) {
     return null;
@@ -131,4 +140,12 @@ export function Modal({ open, onClose, labelledBy, describedBy, children }: Moda
       </div>
     </div>
   );
+}
+
+/**
+ * Helper for the staggered content reveal: returns the `--i` custom property
+ * (consumed by the `.stagger` CSS rule) for a given child index.
+ */
+export function stagger(index: number): CSSProperties {
+  return { ["--i" as string]: index };
 }

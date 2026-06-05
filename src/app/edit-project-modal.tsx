@@ -1,7 +1,7 @@
 "use client";
 
-import { CSSProperties, FormEvent, useEffect, useState } from "react";
-import { Modal } from "@/app/modal";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Modal, stagger } from "@/app/modal";
 
 export type EditableProject = {
   id: string;
@@ -31,6 +31,8 @@ export function EditProjectModal({
   const [status, setStatus] = useState("ACTIVE");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const keepEditingRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (project) {
@@ -38,8 +40,34 @@ export function EditProjectModal({
       setName(project.name);
       setStatus(project.status);
       setError(null);
+      setConfirmDiscard(false);
     }
   }, [project]);
+
+  // Move focus to the safe default ("Keep editing") when the discard prompt appears.
+  useEffect(() => {
+    if (confirmDiscard) {
+      keepEditingRef.current?.focus();
+    }
+  }, [confirmDiscard]);
+
+  const isDirty =
+    snapshot !== null && (name !== snapshot.name || status !== snapshot.status);
+
+  // Intercept every dismissal path (backdrop, Escape, ✕, Cancel): if there are
+  // unsaved edits, ask before throwing them away.
+  function requestClose() {
+    if (isDirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
+  }
+
+  function discard() {
+    setConfirmDiscard(false);
+    onClose();
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,7 +101,7 @@ export function EditProjectModal({
   const willArchive = status === "ARCHIVED" && snapshot?.status !== "ARCHIVED";
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy="edit-title">
+    <Modal open={open} onClose={requestClose} labelledBy="edit-title">
       <p className="upgrade-eyebrow stagger" style={stagger(0)}>
         Edit project
       </p>
@@ -132,19 +160,34 @@ export function EditProjectModal({
           </p>
         ) : null}
 
-        <div className="modal-actions-row stagger" style={stagger(5)}>
-          <button className="btn-ghost" type="button" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="btn-primary" type="submit" disabled={isSaving}>
-            {isSaving ? "Saving…" : "Save changes"}
-          </button>
-        </div>
+        {confirmDiscard ? (
+          <div className="edit-discard" role="group" aria-label="Discard unsaved changes">
+            <p className="edit-discard-text">Discard your unsaved changes?</p>
+            <div className="modal-actions-row">
+              <button
+                className="btn-ghost"
+                type="button"
+                ref={keepEditingRef}
+                onClick={() => setConfirmDiscard(false)}
+              >
+                Keep editing
+              </button>
+              <button className="btn-danger" type="button" onClick={discard}>
+                Discard
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="modal-actions-row stagger" style={stagger(5)}>
+            <button className="btn-ghost" type="button" onClick={requestClose}>
+              Cancel
+            </button>
+            <button className="btn-primary" type="submit" disabled={isSaving}>
+              {isSaving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        )}
       </form>
     </Modal>
   );
-}
-
-function stagger(index: number): CSSProperties {
-  return { ["--i" as string]: index };
 }

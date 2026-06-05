@@ -1,7 +1,7 @@
 "use client";
 
-import { CSSProperties, useEffect, useState } from "react";
-import { Modal } from "@/app/modal";
+import { useEffect, useState } from "react";
+import { Modal, stagger } from "@/app/modal";
 
 type UpgradeModalProps = {
   open: boolean;
@@ -85,8 +85,4 @@ export function UpgradeModal({ open, used, limit, onClose, onUpgrade }: UpgradeM
       </div>
     </Modal>
   );
-}
-
-function stagger(index: number): CSSProperties {
-  return { ["--i" as string]: index };
 }

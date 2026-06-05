@@ -647,6 +647,43 @@ tbody tr:last-child td {
   border: 1px solid var(--line);
 }
 
+.modal-actions-row .btn-danger {
+  flex: 1;
+  width: auto;
+  min-height: 44px;
+  background: var(--danger);
+  box-shadow: 0 10px 22px -12px rgba(190, 18, 60, 0.8);
+  transition:
+    filter 140ms ease,
+    transform 140ms ease;
+}
+
+.modal-actions-row .btn-danger:hover {
+  filter: brightness(1.06);
+}
+
+.modal-actions-row .btn-danger:active {
+  transform: scale(0.98);
+}
+
+/* Inline "discard unsaved changes?" confirmation inside the edit modal */
+.edit-discard {
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff7ed;
+}
+
+.edit-discard-text {
+  margin: 0;
+  color: var(--warning);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 @media (max-width: 720px) {
   .shell {
     width: min(100% - 24px, 1040px);

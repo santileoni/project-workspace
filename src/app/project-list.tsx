@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { KeyboardEvent, useMemo, useRef, useState } from "react";
 import { EditableProject, EditProjectModal } from "@/app/edit-project-modal";
 
 type ProjectListProps = {
@@ -21,6 +21,7 @@ export function ProjectList({ userId, projects }: ProjectListProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("ACTIVE");
   const [editing, setEditing] = useState<EditableProject | null>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const counts = useMemo(() => {
     return projects.reduce<Record<string, number>>((acc, project) => {
@@ -31,20 +32,48 @@ export function ProjectList({ userId, projects }: ProjectListProps) {
 
   const visibleProjects = projects.filter((project) => project.status === activeTab);
 
+  // WAI-ARIA tablist keyboard support: the tablist is a single tab stop (roving
+  // tabindex), and arrow/Home/End move between tabs, activating as they go.
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      next = (index + 1) % TABS.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      next = (index - 1 + TABS.length) % TABS.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = TABS.length - 1;
+    }
+
+    if (next === null) {
+      return;
+    }
+
+    event.preventDefault();
+    setActiveTab(TABS[next].key);
+    tabRefs.current[next]?.focus();
+  }
+
   return (
     <section className="project-list" aria-label="Projects">
       <div className="project-tabs" role="tablist" aria-label="Filter projects by status">
-        {TABS.map((tab) => (
+        {TABS.map((tab, index) => (
           <button
             key={tab.key}
             role="tab"
             type="button"
             id={`tab-${tab.key.toLowerCase()}`}
+            ref={(element) => {
+              tabRefs.current[index] = element;
+            }}
             aria-selected={activeTab === tab.key}
             aria-controls="project-tabpanel"
+            tabIndex={activeTab === tab.key ? 0 : -1}
             className="project-tab"
             data-active={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
+            onKeyDown={(event) => onTabKeyDown(event, index)}
           >
             {tab.label}
             <span className="project-tab-count">{counts[tab.key] ?? 0}</span>
