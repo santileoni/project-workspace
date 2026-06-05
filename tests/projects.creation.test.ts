@@ -108,6 +108,96 @@ describe("project creation", () => {
     expect(response.status).toBe(400);
     expect(body.error).toBe("Project name is required.");
   });
+
+  it("allows free orgs to reach the 3 project limit", async () => {
+    // Fixture starts with 2 projects; the 3rd should still be allowed.
+    const response = await requestCreateProject(fixture.user, {
+      name: "Third Project"
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it("blocks free orgs from exceeding the 3 project limit", async () => {
+    await requestCreateProject(fixture.user, { name: "Third Project" });
+
+    const response = await requestCreateProject(fixture.user, {
+      name: "Fourth Project"
+    });
+    const body = (await response.json()) as { error: string };
+
+    expect(response.status).toBe(403);
+    expect(body.error).toMatch(/limited to 3 active projects/);
+  });
+
+  it("does not count archived projects toward the free limit", async () => {
+    // Fixture has 2 live projects. Adding an archived one leaves the live count
+    // at 2, so one more create is still allowed before the limit kicks in.
+    await prisma.project.create({
+      data: {
+        id: "test-create-archived",
+        name: "Archived One",
+        status: ProjectStatus.ARCHIVED,
+        organizationId: fixture.org
+      }
+    });
+
+    const third = await requestCreateProject(fixture.user, { name: "Third Active" });
+    expect(third.status).toBe(201);
+
+    // Live count is now 3 (2 original + 1 new); the archived one is ignored.
+    const fourth = await requestCreateProject(fixture.user, { name: "Fourth Active" });
+    expect(fourth.status).toBe(403);
+  });
+
+  it("lets pro orgs create beyond the free limit", async () => {
+    await prisma.organization.update({
+      where: { id: fixture.org },
+      data: { plan: BillingPlan.PRO }
+    });
+
+    await requestCreateProject(fixture.user, { name: "Third Project" });
+    const response = await requestCreateProject(fixture.user, {
+      name: "Fourth Project"
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it("does not exceed the limit under concurrent creates (race)", async () => {
+    // Fixture has 2 live projects → exactly 1 free slot. Firing several creates
+    // at once must let through only one; the per-org advisory lock serializes
+    // the check+insert so the others see the slot is gone.
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        requestCreateProject(fixture.user, { name: `Race ${i}` })
+      )
+    );
+    const statuses = responses.map((response) => response.status);
+
+    expect(statuses.filter((status) => status === 201)).toHaveLength(1);
+    expect(statuses.filter((status) => status === 403)).toHaveLength(4);
+
+    const liveCount = await prisma.project.count({
+      where: { organizationId: fixture.org, status: { not: ProjectStatus.ARCHIVED } }
+    });
+    expect(liveCount).toBe(3);
+  });
+
+  it("allows creating an archived project even at the active limit", async () => {
+    // Reach the live limit (fixture has 2; this makes 3 active = the cap).
+    await requestCreateProject(fixture.user, { name: "Third Active" });
+
+    // An archived project doesn't count toward the limit, so it's still allowed.
+    const response = await requestCreateProject(fixture.user, {
+      name: "Archived Extra",
+      status: ProjectStatus.ARCHIVED
+    });
+    const body = (await response.json()) as { project: { status: ProjectStatus } };
+
+    expect(response.status).toBe(201);
+    expect(body.project.status).toBe(ProjectStatus.ARCHIVED);
+  });
 });
 
 function requestCreateProject(userId: string, body: Record<string, unknown>) {
